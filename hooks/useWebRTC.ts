@@ -31,6 +31,8 @@ export const useWebRTC = (roomId: string, username: string, videoEnabled: boolea
 
     const [isMuted, setIsMuted] = useState(false);
     const [isVideoOff, setIsVideoOff] = useState(!videoEnabled);
+    const [isScreenSharing, setIsScreenSharing] = useState(false);
+    const screenStreamRef = useRef<MediaStream | null>(null);
 
     // Helper to renegotiate all peers
     const renegotiateAll = useCallback(() => {
@@ -234,6 +236,13 @@ export const useWebRTC = (roomId: string, username: string, videoEnabled: boolea
             peersRef.current.set(payload.callerId, pc);
 
             await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+
+            // Allow processing of buffered ICE candidates now that RD is set
+            // (In a more complex imp, we might have a dedicated buffer map. 
+            // For now, relies on the fact that if we await above, we might miss synchronous events if not careful, 
+            // but socket.on is async to the main flow. 
+            // Better strategy: simply attach the listener, and inside it check pc.remoteDescription)
+
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
 
@@ -241,17 +250,53 @@ export const useWebRTC = (roomId: string, username: string, videoEnabled: boolea
             setPeers(prev => [...prev, payload.callerId]);
         });
 
-        socket.on("answer", (payload) => {
+        socket.on("answer", async (payload) => {
             const pc = peersRef.current.get(payload.callerId);
             if (pc) {
-                pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
+                await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
             }
         });
 
         socket.on("ice", (payload) => {
             const pc = peersRef.current.get(payload.callerId);
             if (pc) {
-                pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
+                const candidate = new RTCIceCandidate(payload.candidate);
+                // Check if we are ready to add candidate
+                if (pc.remoteDescription) {
+                    pc.addIceCandidate(candidate).catch(e => console.error("Error adding ice candidate", e));
+                } else {
+                    // Buffer it? Or standard trick:
+                    // browsers usually queue this internally if using trickle ICE properly, 
+                    // but sometimes explicit buffering helps.
+                    // A simple retry mechanism:
+                    console.log("Remote desc not ready, queuing candidate");
+                    // We can just retry in a bit or attach a listener. 
+                    // Simpler for this context: queue it in a property on the PC or a side map.
+                    // Let's assume the PC will queue if we catch the error? 
+                    // No, invalid state error if no RD.
+
+                    // Let's implement a simple queue on the PC object itself (monkey patch for simplicity) 
+                    // or just a local queue.
+                    // Actually, let's keep it simple: add it to a queue map.
+                    // BUT since we can't easily change the hook state structure deeply mid-execution without risk,
+                    // let's try the .catch/retry approach or just rely on 'await setRemoteDescription' being fast enough mostly, but evidently it isn't.
+
+                    // Robust fix:
+                    if (!pc.remoteDescription) {
+                        // wait for it
+                        const interval = setInterval(() => {
+                            if (pc.remoteDescription) {
+                                pc.addIceCandidate(candidate).catch(e => console.error("Error adding buffered ice", e));
+                                clearInterval(interval);
+                            }
+                            // clear if too long?
+                        }, 100);
+                        // Safety clear
+                        setTimeout(() => clearInterval(interval), 10000);
+                    } else {
+                        pc.addIceCandidate(candidate).catch(e => console.error("Error adding ice candidate", e));
+                    }
+                }
             }
         });
 
@@ -336,6 +381,75 @@ export const useWebRTC = (roomId: string, username: string, videoEnabled: boolea
         }
     }
 
+    const startScreenShare = async () => {
+        try {
+            const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+            const screenTrack = stream.getVideoTracks()[0];
+
+            screenStreamRef.current = stream;
+            setIsScreenSharing(true);
+
+            // Replace track in all peers
+            peersRef.current.forEach((pc) => {
+                const senders = pc.getSenders();
+                const videoSender = senders.find((s) => s.track?.kind === "video");
+                if (videoSender) {
+                    videoSender.replaceTrack(screenTrack);
+                }
+            });
+
+            // Update local stream to show screen locally
+            if (localStreamRef.current) {
+                // Keep audio from mic
+                const audioTracks = localStreamRef.current.getAudioTracks();
+                const newStream = new MediaStream([...audioTracks, screenTrack]);
+                setLocalStream(newStream);
+            }
+
+            // Handle user clicking "Stop Sharing" in browser UI
+            screenTrack.onended = () => {
+                stopScreenShare();
+            };
+
+        } catch (err) {
+            console.error("Failed to share screen", err);
+        }
+    };
+
+    const stopScreenShare = () => {
+        if (screenStreamRef.current) {
+            screenStreamRef.current.getTracks().forEach(t => t.stop());
+            screenStreamRef.current = null;
+        }
+
+        setIsScreenSharing(false);
+
+        // Revert to camera
+        if (localStreamRef.current) {
+            const cameraTrack = localStreamRef.current.getVideoTracks()[0];
+
+            // Switch peers back
+            peersRef.current.forEach((pc) => {
+                const senders = pc.getSenders();
+                const videoSender = senders.find((s) => s.track?.kind === "video");
+                if (videoSender && cameraTrack) {
+                    videoSender.replaceTrack(cameraTrack);
+                }
+            });
+
+            // Restore local view
+            setLocalStream(localStreamRef.current);
+        }
+    };
+
+    const toggleScreenShare = () => {
+        if (isScreenSharing) {
+            stopScreenShare();
+        } else {
+            startScreenShare();
+        }
+    };
+
     return {
         localStream,
         remoteStreams,
@@ -346,6 +460,8 @@ export const useWebRTC = (roomId: string, username: string, videoEnabled: boolea
         isVideoOff,
         leaveRoom,
         broadcastFile,
-        receivedFiles
+        receivedFiles,
+        isScreenSharing,
+        toggleScreenShare
     };
 };

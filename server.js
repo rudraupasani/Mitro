@@ -60,6 +60,16 @@ io.on("connection", (socket) => {
         });
     });
 
+    // Chat Message
+    socket.on("chat-message", (messageData) => {
+        const roomId = socketToRoom[socket.id];
+        if (roomId) {
+            // Broadcast to everyone in the room INCLUDING sender (for simplicity, or filter sender in UI)
+            // Typically we want to emit to room.
+            io.to(roomId).emit("chat-message", messageData);
+        }
+    });
+
     // Disconnect
     socket.on("disconnect", () => {
         const roomId = socketToRoom[socket.id];
