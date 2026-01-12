@@ -11,7 +11,7 @@ const server = http.createServer((req, res) => {
 
 const io = new Server(server, {
     cors: {
-        origin: "*",
+        origin: "https://filezy.onrender.com",
         methods: ["GET", "POST"],
     },
 });
