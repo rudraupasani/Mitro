@@ -216,7 +216,16 @@ export const useWebRTC = (roomId: string, username: string, videoEnabled: boolea
 
         socket.emit("join-room", roomId);
 
+        socket.on("connect", () => {
+            console.log("✅ Socket connected!", socket.id);
+        });
+
+        socket.on("connect_error", (err) => {
+            console.error("❌ Socket connection error:", err);
+        });
+
         socket.on("all-users", (users: string[]) => {
+            console.log("👥 Received users list:", users);
             const peersArr: string[] = [];
             users.forEach(userID => {
                 const pc = createPeer(userID, true); // Initiator

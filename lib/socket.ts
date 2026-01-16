@@ -1,5 +1,5 @@
 import { io } from "socket.io-client";
 
 export const socket = io("https://room-server-7det.onrender.com", {
-    transports: ["websocket"],
+    transports: ["polling", "websocket"],
 });
