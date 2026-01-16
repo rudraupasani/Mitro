@@ -9,13 +9,14 @@ import ChatArea from "@/components/chat/ChatArea";
 import AuthProvider, { useAuth } from "@/components/providers/AuthProvider";
 import LoginScreen from "@/components/auth/LoginScreen";
 import ProfileModal from "@/components/user/ProfileModal";
+import { House } from "lucide-react";
 
 // Dummy Data
-const SERVERS = [
-  { id: "s1", name: "Dev Community", icon: "👨‍💻", color: "bg-indigo-500" },
-  { id: "s2", name: "Gaming Hub", icon: "🎮", color: "bg-green-500" },
-  { id: "s3", name: "Music Lounge", icon: "🎵", color: "bg-red-500" },
-];
+// const SERVERS = [
+//   { id: "s1", name: "Dev Community", color: "bg-indigo-500" },
+//   // { id: "s2", name: "Gaming Hub", icon: "🎮", color: "bg-green-500" },
+//   // { id: "s3", name: "Music Lounge", icon: "🎵", color: "bg-red-500" },
+// ];
 
 const CHANNELS = [
   { id: "c1", name: "General Voice", type: "voice" as const },
@@ -28,7 +29,7 @@ function AuthenticatedApp() {
   const { user } = useAuth();
 
   // App State
-  const [activeServer, setActiveServer] = useState(SERVERS[0].id);
+  // const [activeServer, setActiveServer] = useState(SERVERS[0].id);
   const [activeChannel, setActiveChannel] = useState<string | null>(null);
   const [previewChannel, setPreviewChannel] = useState<string | null>(null);
   const [showProfile, setShowProfile] = useState(false);
@@ -85,15 +86,15 @@ function AuthenticatedApp() {
       {/* Main Discord Layout */}
       <>
         {/* 1. Server Sidebar */}
-        <ServerSidebar
+        {/* <ServerSidebar
           servers={SERVERS}
           activeServer={activeServer}
           onServerClick={setActiveServer}
-        />
+        /> */}
 
         {/* 2. Channel Sidebar */}
         <ChannelSidebar
-          server={SERVERS.find((s) => s.id === activeServer)}
+          // server={SERVERS.find((s) => s.id === activeServer)}
           channels={CHANNELS}
           activeChannel={activeChannel}
           previewChannel={previewChannel}
@@ -134,7 +135,7 @@ function AuthenticatedApp() {
               </div>
 
               {/* File Upload Button (Only when connected) */}
-              {activeChannel && (
+              {/* {activeChannel && (
                 <div>
                   <label
                     htmlFor="file-upload"
@@ -149,7 +150,7 @@ function AuthenticatedApp() {
                     onChange={handleFileUpload}
                   />
                 </div>
-              )}
+              )} */}
             </header>
 
             {/* Content Area */}
@@ -176,13 +177,13 @@ function AuthenticatedApp() {
                   <div className="flex gap-4">
                     <button
                       onClick={() => setPreviewChannel(null)}
-                      className="px-6 py-3 rounded bg-[#2b2d31] hover:bg-[#35373c] font-medium"
+                      className="px-6 py-3 rounded bg-[#2b2d31] hover:bg-[#35373c] font-medium cursor-pointer border border-[#1f2023]"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={confirmJoin}
-                      className="px-6 py-3 rounded bg-green-600 hover:bg-green-700 text-white font-bold shadow-lg"
+                      className="px-6 py-3 rounded bg-green-600 hover:bg-green-700 text-white font-bold shadow-lg cursor-pointer"
                     >
                       Join Voice
                     </button>
@@ -256,7 +257,7 @@ function AuthWrapper() {
   if (loading) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-[#313338] text-white">
-        <div className="animate-pulse">Loading Application...</div>
+        <div className="animate-pulse"><House size={16} className="inline mr-2" /> Room Community</div>
       </div>
     )
   }

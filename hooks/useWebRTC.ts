@@ -34,282 +34,230 @@ export const useWebRTC = (roomId: string, username: string, videoEnabled: boolea
     const [isScreenSharing, setIsScreenSharing] = useState(false);
     const screenStreamRef = useRef<MediaStream | null>(null);
 
-    // Helper to renegotiate all peers
-    const renegotiateAll = useCallback(() => {
-        peersRef.current.forEach((pc, userId) => {
-            pc.createOffer().then(offer => {
-                pc.setLocalDescription(offer);
-                socket.emit("offer", { target: userId, sdp: offer });
-            }).catch(console.error);
-        });
-    }, []);
-
-    // Initialize/Update Local Media
+    // --- 1. Media Management Effect ---
     useEffect(() => {
-        if (!roomId) return;
+        let mounted = true;
 
-        const constraints = {
-            audio: true,
-            video: videoEnabled
-        };
+        const initMedia = async () => {
+            try {
+                console.log(`🎥 Requesting User Media: Audio=true, Video=${videoEnabled}`);
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: true,
+                    video: videoEnabled
+                });
 
-        console.log(`🎥 Media Constraints changed: Audio=true, Video=${videoEnabled}`);
+                if (!mounted) {
+                    stream.getTracks().forEach(t => t.stop());
+                    return;
+                }
 
-        navigator.mediaDevices.getUserMedia(constraints)
-            .then(stream => {
-                // 1. Update State
-                setLocalStream(stream);
-
-                // 2. Stop old tracks ONLY if we are replacing them completely?
-                // Actually best to stop strictly old tracks that are NOT in new stream.
-                // But here we get a fresh stream every time.
+                // Stop old tracks if they exist
                 if (localStreamRef.current) {
                     localStreamRef.current.getTracks().forEach(t => t.stop());
                 }
-                localStreamRef.current = stream;
 
-                // 3. Update Peers
-                peersRef.current.forEach((pc, userId) => {
-                    // For each track in new stream, find sender or add track
+                localStreamRef.current = stream;
+                setLocalStream(stream);
+
+                // Update tracks for all existing peers
+                peersRef.current.forEach((pc, peerId) => {
                     const senders = pc.getSenders();
 
+                    // 1. Add or Replace tracks
                     stream.getTracks().forEach(newTrack => {
                         const existingSender = senders.find(s => s.track?.kind === newTrack.kind);
                         if (existingSender) {
-                            console.log(`🔄 Replacing ${newTrack.kind} track for ${userId}`);
-                            existingSender.replaceTrack(newTrack);
+                            console.log(`🔄 Replacing ${newTrack.kind} track for ${peerId}`);
+                            existingSender.replaceTrack(newTrack).catch(e => console.error("Replace track failed", e));
                         } else {
-                            console.log(`➕ Adding new ${newTrack.kind} track for ${userId}`);
+                            console.log(`➕ Adding new ${newTrack.kind} track for ${peerId}`);
                             pc.addTrack(newTrack, stream);
-                            // If we added a track, we MUST renegotiate for this peer
-                            // But we do it after the loop potentially?
-                            // pc.addTrack triggers 'negotiationneeded' but we handle manual offers.
                         }
                     });
 
-                    // Check for tracks to remove (e.g. if videoEnabled went true -> false)
+                    // 2. Remove tracks that are no longer in the new stream
                     senders.forEach(sender => {
                         if (sender.track && !stream.getTracks().find(t => t.kind === sender.track!.kind)) {
-                            console.log(`➖ Removing/Stopping ${sender.track.kind} track for ${userId}`);
+                            console.log(`➖ Removing ${sender.track.kind} track for ${peerId}`);
                             pc.removeTrack(sender);
                         }
                     });
 
-                    // Always triggered re-negotiation to ensure remote knows about track changes
+                    // 3. Trigger Offer to sync changes (renegotiation)
                     pc.createOffer().then(offer => {
                         pc.setLocalDescription(offer);
-                        socket.emit("offer", { target: userId, sdp: offer });
-                    });
+                        socket.emit("offer", { target: peerId, sdp: offer });
+                    }).catch(console.error);
                 });
 
-            })
-            .catch(err => {
+            } catch (err) {
                 console.error("Failed to get local stream", err);
-                // Fallback?
-            });
+            }
+        };
 
-        // Cleanup on unmount or roomId change
+        initMedia();
+
         return () => {
-            // We don't stop tracks here because we might just be toggling video
-            // The next effect run handles cleanup of 'old' ref.
+            mounted = false;
         };
-    }, [roomId, videoEnabled]);
+    }, [videoEnabled]);
 
-    // Handle incoming data channel messages
-    const handleDataMessage = useCallback((senderId: string, data: any) => {
-        // Check if it's metadata (JSON string) or chunk (ArrayBuffer)
-        if (typeof data === "string") {
-            try {
-                const msg = JSON.parse(data);
-                if (msg.type === "file-start") {
-                    console.log(`📂 Receiving file ${msg.name} from ${senderId}`);
-                    fileTransferRefs.current.set(senderId, {
-                        fileName: msg.name,
-                        fileSize: msg.size,
-                        receivedSize: 0,
-                        chunks: [],
-                        isReceiving: true,
-                        senderId: senderId
-                    });
-                }
-            } catch (e) {
-                console.error("Parsed invalid JSON on data channel", e);
-            }
-        } else if (data instanceof ArrayBuffer) {
-            const transfer = fileTransferRefs.current.get(senderId);
-            if (transfer && transfer.isReceiving) {
-                transfer.chunks.push(data);
-                transfer.receivedSize += data.byteLength;
-
-                if (transfer.receivedSize >= transfer.fileSize) {
-                    console.log(`✅ File ${transfer.fileName} received completely!`);
-                    const blob = new Blob(transfer.chunks);
-                    const url = URL.createObjectURL(blob);
-
-                    setReceivedFiles(prev => [...prev, {
-                        name: transfer.fileName,
-                        url: url,
-                        sender: senderId
-                    }]);
-
-                    fileTransferRefs.current.delete(senderId);
-                }
-            }
-        }
-    }, []);
-
-    const createPeer = (targetId: string, initiator: boolean) => {
-        const pc = new RTCPeerConnection({
-            iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
-        });
-
-        pc.onicecandidate = (e) => {
-            if (e.candidate) {
-                socket.emit("ice", { target: targetId, candidate: e.candidate });
-            }
-        };
-
-        pc.ontrack = (e) => {
-            const stream = e.streams[0];
-            console.log(`🎥 Received stream from ${targetId} (Tracks: ${stream.getTracks().length})`);
-
-            // Ensure we update state even if tracks change on same stream ID
-            setRemoteStreams(prev => {
-                const newMap = new Map(prev);
-                newMap.set(targetId, stream);
-                return newMap;
-            });
-
-            // Listen for track removals/additions?
-            stream.onaddtrack = () => setRemoteStreams(prev => new Map(prev));
-            stream.onremovetrack = () => setRemoteStreams(prev => new Map(prev));
-        };
-
-        // Data Channel Logic
-        if (initiator) {
-            const dc = pc.createDataChannel("file-transfer");
-            dc.onopen = () => console.log(`💾 Data Channel open with ${targetId}`);
-            dc.onmessage = (e) => handleDataMessage(targetId, e.data);
-            dataChannelsRef.current.set(targetId, dc);
-        } else {
-            pc.ondatachannel = (e) => {
-                const dc = e.channel;
-                console.log(`💾 Data Channel received from ${targetId}`);
-                dc.onopen = () => console.log("💾 Data Channel open (receiver)");
-                dc.onmessage = (e) => handleDataMessage(targetId, e.data);
-                dataChannelsRef.current.set(targetId, dc);
-            };
-        }
-
-        if (localStreamRef.current) {
-            localStreamRef.current.getTracks().forEach(track => {
-                pc.addTrack(track, localStreamRef.current!);
-            });
-        }
-
-        peersRef.current.set(targetId, pc);
-        return pc;
-    };
-
+    // --- 2. Signaling Effect ---
     useEffect(() => {
         if (!roomId) return;
 
+        const handleDataMessage = (senderId: string, data: any) => {
+            if (typeof data === "string") {
+                try {
+                    const msg = JSON.parse(data);
+                    if (msg.type === "file-start") {
+                        console.log(`📂 Receiving file ${msg.name} from ${senderId}`);
+                        fileTransferRefs.current.set(senderId, {
+                            fileName: msg.name,
+                            fileSize: msg.size,
+                            receivedSize: 0,
+                            chunks: [],
+                            isReceiving: true,
+                            senderId: senderId
+                        });
+                    }
+                } catch (e) {
+                    console.error("Parsed invalid JSON on data channel", e);
+                }
+            } else if (data instanceof ArrayBuffer) {
+                const transfer = fileTransferRefs.current.get(senderId);
+                if (transfer && transfer.isReceiving) {
+                    transfer.chunks.push(data);
+                    transfer.receivedSize += data.byteLength;
+
+                    if (transfer.receivedSize >= transfer.fileSize) {
+                        console.log(`✅ File ${transfer.fileName} received completely!`);
+                        const blob = new Blob(transfer.chunks);
+                        const url = URL.createObjectURL(blob);
+
+                        setReceivedFiles(prev => [...prev, {
+                            name: transfer.fileName,
+                            url: url,
+                            sender: senderId
+                        }]);
+
+                        fileTransferRefs.current.delete(senderId);
+                    }
+                }
+            }
+        };
+
+        const createPeer = (targetId: string, initiator: boolean) => {
+            if (peersRef.current.has(targetId)) {
+                return peersRef.current.get(targetId)!;
+            }
+
+            console.log(`🆕 Creating new Peer Connection for ${targetId} (Initiator: ${initiator})`);
+            const pc = new RTCPeerConnection({
+                iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+            });
+
+            pc.onicecandidate = (e) => {
+                if (e.candidate) {
+                    socket.emit("ice", { target: targetId, candidate: e.candidate });
+                }
+            };
+
+            pc.ontrack = (e) => {
+                const stream = e.streams[0];
+                console.log(`🎥 Received stream from ${targetId} (Tracks: ${stream.getTracks().length})`);
+                setRemoteStreams(prev => {
+                    const newMap = new Map(prev);
+                    newMap.set(targetId, stream);
+                    return newMap;
+                });
+            };
+
+            if (initiator) {
+                const dc = pc.createDataChannel("file-transfer");
+                dc.onopen = () => console.log(`💾 Data Channel open with ${targetId}`);
+                dc.onmessage = (e) => handleDataMessage(targetId, e.data);
+                dataChannelsRef.current.set(targetId, dc);
+            } else {
+                pc.ondatachannel = (e) => {
+                    const dc = e.channel;
+                    dc.onmessage = (e) => handleDataMessage(targetId, e.data);
+                    dataChannelsRef.current.set(targetId, dc);
+                };
+            }
+
+            // Add local tracks if available
+            if (localStreamRef.current) {
+                localStreamRef.current.getTracks().forEach(track => {
+                    pc.addTrack(track, localStreamRef.current!);
+                });
+            }
+
+            peersRef.current.set(targetId, pc);
+            return pc;
+        };
+
         socket.emit("join-room", roomId);
 
-        socket.on("connect", () => {
-            console.log("✅ Socket connected!", socket.id);
-        });
-
-        socket.on("connect_error", (err) => {
-            console.error("❌ Socket connection error:", err);
-        });
-
-        socket.on("all-users", (users: string[]) => {
-            console.log("👥 Received users list:", users);
+        const onAllUsers = (users: string[]) => {
+            console.log("👥 Received all-users:", users);
             const peersArr: string[] = [];
             users.forEach(userID => {
-                const pc = createPeer(userID, true); // Initiator
-                peersRef.current.set(userID, pc);
+                const pc = createPeer(userID, true);
                 peersArr.push(userID);
-
                 pc.createOffer().then(offer => {
                     pc.setLocalDescription(offer);
                     socket.emit("offer", { target: userID, sdp: offer });
                 });
             });
             setPeers(peersArr);
-        });
+        };
 
-        socket.on("offer", async (payload) => {
-            const pc = createPeer(payload.callerId, false); // Receiver
-            peersRef.current.set(payload.callerId, pc);
+        const onOffer = async (payload: { target: string, callerId: string, sdp: RTCSessionDescriptionInit }) => {
+            // Initiate peer if not exists, otherwise REUSE
+            const pc = createPeer(payload.callerId, false);
+
+            console.log(`📨 Received Offer from ${payload.callerId}`);
+
+            // Avoid "have-local-offer" collision if both sides offer? (Simplify for now)
+            if (pc.signalingState !== "stable" && pc.signalingState !== "have-remote-offer") {
+                // Determine collision resolution (polite vs impolite peer) if needed.
+                // For now, we proceed, but if we catch error, we might log it.
+                // Or if we just created it, it is 'stable'.
+            }
 
             await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
 
-            // Allow processing of buffered ICE candidates now that RD is set
-            // (In a more complex imp, we might have a dedicated buffer map. 
-            // For now, relies on the fact that if we await above, we might miss synchronous events if not careful, 
-            // but socket.on is async to the main flow. 
-            // Better strategy: simply attach the listener, and inside it check pc.remoteDescription)
+            // Flush buffered ICE candidates here if we had any logic for that
 
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
-
             socket.emit("answer", { target: payload.callerId, sdp: answer });
-            setPeers(prev => [...prev, payload.callerId]);
-        });
 
-        socket.on("answer", async (payload) => {
+            setPeers(prev => prev.includes(payload.callerId) ? prev : [...prev, payload.callerId]);
+        };
+
+        const onAnswer = async (payload: { callerId: string, sdp: RTCSessionDescriptionInit }) => {
+            console.log(`📨 Received Answer from ${payload.callerId}`);
             const pc = peersRef.current.get(payload.callerId);
             if (pc) {
                 await pc.setRemoteDescription(new RTCSessionDescription(payload.sdp));
             }
-        });
+        };
 
-        socket.on("ice", (payload) => {
+        const onIce = (payload: { callerId: string, candidate: RTCIceCandidateInit }) => {
             const pc = peersRef.current.get(payload.callerId);
             if (pc) {
                 const candidate = new RTCIceCandidate(payload.candidate);
-                // Check if we are ready to add candidate
-                if (pc.remoteDescription) {
+                // Basic trick handling: only add if remote description is set
+                if (pc.remoteDescription && pc.remoteDescription.type) {
                     pc.addIceCandidate(candidate).catch(e => console.error("Error adding ice candidate", e));
-                } else {
-                    // Buffer it? Or standard trick:
-                    // browsers usually queue this internally if using trickle ICE properly, 
-                    // but sometimes explicit buffering helps.
-                    // A simple retry mechanism:
-                    console.log("Remote desc not ready, queuing candidate");
-                    // We can just retry in a bit or attach a listener. 
-                    // Simpler for this context: queue it in a property on the PC or a side map.
-                    // Let's assume the PC will queue if we catch the error? 
-                    // No, invalid state error if no RD.
-
-                    // Let's implement a simple queue on the PC object itself (monkey patch for simplicity) 
-                    // or just a local queue.
-                    // Actually, let's keep it simple: add it to a queue map.
-                    // BUT since we can't easily change the hook state structure deeply mid-execution without risk,
-                    // let's try the .catch/retry approach or just rely on 'await setRemoteDescription' being fast enough mostly, but evidently it isn't.
-
-                    // Robust fix:
-                    if (!pc.remoteDescription) {
-                        // wait for it
-                        const interval = setInterval(() => {
-                            if (pc.remoteDescription) {
-                                pc.addIceCandidate(candidate).catch(e => console.error("Error adding buffered ice", e));
-                                clearInterval(interval);
-                            }
-                            // clear if too long?
-                        }, 100);
-                        // Safety clear
-                        setTimeout(() => clearInterval(interval), 10000);
-                    } else {
-                        pc.addIceCandidate(candidate).catch(e => console.error("Error adding ice candidate", e));
-                    }
                 }
             }
-        });
+        };
 
-        socket.on("user-left", (userId: string) => {
+        const onUserLeft = (userId: string) => {
+            console.log(`👋 User left: ${userId}`);
             if (peersRef.current.has(userId)) {
                 peersRef.current.get(userId)?.close();
                 peersRef.current.delete(userId);
@@ -324,24 +272,27 @@ export const useWebRTC = (roomId: string, username: string, videoEnabled: boolea
                 newMap.delete(userId);
                 return newMap;
             });
-        });
+        };
+
+        socket.on("all-users", onAllUsers);
+        socket.on("offer", onOffer);
+        socket.on("answer", onAnswer);
+        socket.on("ice", onIce);
+        socket.on("user-left", onUserLeft);
 
         return () => {
-            socket.off("all-users");
-            socket.off("offer");
-            socket.off("answer");
-            socket.off("ice");
-            socket.off("user-left");
+            socket.off("all-users", onAllUsers);
+            socket.off("offer", onOffer);
+            socket.off("answer", onAnswer);
+            socket.off("ice", onIce);
+            socket.off("user-left", onUserLeft);
 
             peersRef.current.forEach(pc => pc.close());
             peersRef.current.clear();
             dataChannelsRef.current.forEach(dc => dc.close());
             dataChannelsRef.current.clear();
-
-            if (localStreamRef.current) {
-                localStreamRef.current.getTracks().forEach(t => t.stop());
-            }
             setRemoteStreams(new Map());
+            setPeers([]);
         };
 
     }, [roomId]);
@@ -354,33 +305,24 @@ export const useWebRTC = (roomId: string, username: string, videoEnabled: boolea
     };
 
     const toggleVideo = () => {
-        // Intentionally empty or handled by prop if we want hard toggle
-        // The prop handles the hard mounting of tracks.
-        // This function could just toggle enabled state if track exists
+        // UI should use the videoEnabled prop, but this logic remains for completeness or soft-toggles
         if (localStreamRef.current) {
             localStreamRef.current.getVideoTracks().forEach(t => t.enabled = !t.enabled);
-            // Update state to reflect 'mute' status, not 'presence' status
-            // But for now page.tsx drives 'presence' via videoEnabled prop
         }
     };
 
     const leaveRoom = () => {
-        socket.emit("disconnect");
-    }
+        socket.disconnect();
+    };
 
     const broadcastFile = async (file: File) => {
         if (dataChannelsRef.current.size === 0) return;
-
         console.log(`📤 Broadcasting file: ${file.name}`);
         const CHUNK_SIZE = 16384;
-
-        // 1. Send Metadata to ALL
         const metadata = JSON.stringify({ type: "file-start", name: file.name, size: file.size });
         dataChannelsRef.current.forEach(dc => {
             if (dc.readyState === "open") dc.send(metadata);
         });
-
-        // 2. Read and Send Chunks
         const arrayBuffer = await file.arrayBuffer();
         for (let i = 0; i < arrayBuffer.byteLength; i += CHUNK_SIZE) {
             const chunk = arrayBuffer.slice(i, i + CHUNK_SIZE);
@@ -388,74 +330,64 @@ export const useWebRTC = (roomId: string, username: string, videoEnabled: boolea
                 if (dc.readyState === "open") dc.send(chunk);
             });
         }
-    }
-
-    const startScreenShare = async () => {
-        try {
-            const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
-            const screenTrack = stream.getVideoTracks()[0];
-
-            screenStreamRef.current = stream;
-            setIsScreenSharing(true);
-
-            // Replace track in all peers
-            peersRef.current.forEach((pc) => {
-                const senders = pc.getSenders();
-                const videoSender = senders.find((s) => s.track?.kind === "video");
-                if (videoSender) {
-                    videoSender.replaceTrack(screenTrack);
-                }
-            });
-
-            // Update local stream to show screen locally
-            if (localStreamRef.current) {
-                // Keep audio from mic
-                const audioTracks = localStreamRef.current.getAudioTracks();
-                const newStream = new MediaStream([...audioTracks, screenTrack]);
-                setLocalStream(newStream);
-            }
-
-            // Handle user clicking "Stop Sharing" in browser UI
-            screenTrack.onended = () => {
-                stopScreenShare();
-            };
-
-        } catch (err) {
-            console.error("Failed to share screen", err);
-        }
     };
 
-    const stopScreenShare = () => {
-        if (screenStreamRef.current) {
-            screenStreamRef.current.getTracks().forEach(t => t.stop());
-            screenStreamRef.current = null;
-        }
-
-        setIsScreenSharing(false);
-
-        // Revert to camera
-        if (localStreamRef.current) {
-            const cameraTrack = localStreamRef.current.getVideoTracks()[0];
-
-            // Switch peers back
-            peersRef.current.forEach((pc) => {
-                const senders = pc.getSenders();
-                const videoSender = senders.find((s) => s.track?.kind === "video");
-                if (videoSender && cameraTrack) {
-                    videoSender.replaceTrack(cameraTrack);
-                }
-            });
-
-            // Restore local view
-            setLocalStream(localStreamRef.current);
-        }
-    };
-
-    const toggleScreenShare = () => {
+    const toggleScreenShare = async () => {
         if (isScreenSharing) {
-            stopScreenShare();
+            if (screenStreamRef.current) {
+                screenStreamRef.current.getTracks().forEach(t => t.stop());
+                screenStreamRef.current = null;
+            }
+            setIsScreenSharing(false);
+            // Revert to camera
+            if (localStreamRef.current) {
+                const cameraTrack = localStreamRef.current.getVideoTracks()[0];
+                peersRef.current.forEach((pc) => {
+                    const senders = pc.getSenders();
+                    const videoSender = senders.find((s) => s.track?.kind === "video");
+                    if (videoSender && cameraTrack) videoSender.replaceTrack(cameraTrack);
+                });
+                setLocalStream(localStreamRef.current);
+            }
         } else {
-            startScreenShare();
+            try {
+                const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
+                const screenTrack = stream.getVideoTracks()[0];
+                screenStreamRef.current = stream;
+                setIsScreenSharing(true);
+
+                peersRef.current.forEach((pc) => {
+                    const senders = pc.getSenders();
+                    const videoSender = senders.find((s) => s.track?.kind === "video");
+                    if (videoSender) videoSender.replaceTrack(screenTrack);
+                });
+
+                if (localStreamRef.current) {
+                    const audioTracks = localStreamRef.current.getAudioTracks();
+                    const newStream = new MediaStream([...audioTracks, screenTrack]);
+                    setLocalStream(newStream);
+                }
+
+                // Handle recursive stop
+                screenTrack.onended = () => {
+                    // We can't easily call the same function recursively if it's async/state dependent without being careful
+                    // But we can manually execute the stop logic:
+                    if (screenStreamRef.current) {
+                        screenStreamRef.current.getTracks().forEach(t => t.stop());
+                        screenStreamRef.current = null;
+                    }
+                    setIsScreenSharing(false);
+                    if (localStreamRef.current) {
+                        const cameraTrack = localStreamRef.current.getVideoTracks()[0];
+                        peersRef.current.forEach((pc) => {
+                            const senders = pc.getSenders();
+                            const videoSender = senders.find((s) => s.track?.kind === "video");
+                            if (videoSender && cameraTrack) videoSender.replaceTrack(cameraTrack);
+                        });
+                        setLocalStream(localStreamRef.current);
+                    }
+                };
+            } catch (err) { console.error("Failed to share screen", err); }
         }
     };
 

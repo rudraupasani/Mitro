@@ -47,8 +47,8 @@ export default function LoginScreen() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-[url('https://cdn.wallpapersafari.com/13/23/p3M7Cq.jpg')] bg-cover bg-center px-4">
-            <div className="bg-[#313338] w-full max-w-md p-6 sm:p-8 rounded-xl shadow-2xl">
+        <div className="min-h-screen flex items-center justify-center bg-[url('https://i.redd.it/vda9rbt01en01.png')] bg-cover bg-center px-4">
+            <div className="w-full max-w-md p-6 sm:p-8 rounded-xl shadow-2xl bg-[#313338]/70 backdrop-blur-2xl border border-white/10">
                 <h2 className="text-2xl font-bold text-center text-white mb-2">
                     {isSignUp ? "Create an Account" : "Welcome Back!"}
                 </h2>
@@ -65,7 +65,7 @@ export default function LoginScreen() {
                 {/* Google Auth */}
                 <button
                     onClick={handleGoogleLogin}
-                    className="w-full flex items-center justify-center gap-3 bg-white text-black p-3 rounded font-semibold hover:bg-gray-100 transition"
+                    className="w-full cursor-pointer flex items-center justify-center gap-3 bg-white text-black p-3 rounded font-semibold hover:bg-gray-100 transition"
                 >
                     <img
                         src="https://www.svgrepo.com/show/475656/google-color.svg"
@@ -110,7 +110,7 @@ export default function LoginScreen() {
 
                     <button
                         disabled={loading}
-                        className="w-full bg-[#5865F2] hover:bg-[#4752c4] disabled:opacity-60 text-white p-3 rounded font-bold transition flex justify-center"
+                        className="w-full bg-[#5865F2] hover:bg-[#4752c4] cursor-pointer disabled:opacity-60 text-white p-3 rounded font-bold transition flex justify-center"
                     >
                         {loading ? (
                             <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
@@ -120,11 +120,11 @@ export default function LoginScreen() {
                     </button>
                 </form>
 
-                <div className="mt-4 text-sm text-gray-400 text-center">
+                <div className="mt-4 text-sm text-white text-center">
                     {isSignUp ? "Already have an account?" : "Need an account?"}{" "}
                     <button
                         onClick={() => setIsSignUp(!isSignUp)}
-                        className="text-indigo-400 hover:underline font-bold"
+                        className="text-indigo-400 hover:underline font-bold cursor-pointer"
                     >
                         {isSignUp ? "Log In" : "Register"}
                     </button>
