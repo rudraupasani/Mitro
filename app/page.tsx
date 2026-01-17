@@ -22,7 +22,6 @@ const CHANNELS = [
   { id: "c1", name: "General Voice", type: "voice" as const },
   { id: "c2", name: "Gaming", type: "voice" as const },
   { id: "c3", name: "Music", type: "voice" as const },
-  { id: "c4", name: "AFK", type: "voice" as const },
 ];
 
 function AuthenticatedApp() {
@@ -125,12 +124,10 @@ function AuthenticatedApp() {
                     ? CHANNELS.find((c) => c.id === activeChannel)?.name
                     : previewChannel
                       ? CHANNELS.find((c) => c.id === previewChannel)?.name
-                      : "Welcome"}
+                      : `Welcome to Mitro App  ${username}`}
                 </span>
                 {activeChannel && (
-                  <span className="ml-4 bg-green-600 text-white text-xs px-2 py-0.5 rounded font-bold">
-                    Connected
-                  </span>
+                  <span className="ml-2 bg-green-600 text-white text-xs px-1 py-1 rounded-full font-bold"></span>
                 )}
               </div>
 
@@ -257,7 +254,7 @@ function AuthWrapper() {
   if (loading) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-[#313338] text-white">
-        <div className="animate-pulse"><House size={16} className="inline mr-2" /> Room Community</div>
+        <div className="animate-pulse"><House size={16} className="inline mr-2" /> Mitro Community</div>
       </div>
     )
   }

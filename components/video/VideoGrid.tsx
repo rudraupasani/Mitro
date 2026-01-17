@@ -37,7 +37,7 @@ export default function VideoGrid({
                                 )}
                             </div>
                             <div className="font-bold text-lg">{username} (You)</div>
-                            <div className="text-xs text-green-400 font-mono mt-1">Connected</div>
+                            <div className="text-xs bg-green-400 h-2 w-2 rounded-full font-mono mt-1"></div>
                         </>
                     )}
                 </div>
@@ -56,9 +56,9 @@ export default function VideoGrid({
                                 <>
                                     <VideoPlayer stream={stream} muted={false} isVideoOff={true} />
                                     <div className="w-24 h-24 rounded-full bg-gray-600 flex items-center justify-center text-3xl mb-2 relative ring-4 ring-green-500/50 animate-pulse">
-                                        U
+                                        {peerId[0]?.toUpperCase()}
                                     </div>
-                                    <div className="font-bold text-lg">User {peerId.substring(0, 4)}</div>
+                                    <div className="font-bold text-lg">{peerId.substring(0,5)}</div>
                                 </>
                             )}
                         </div>

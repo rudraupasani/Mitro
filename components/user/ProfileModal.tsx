@@ -48,17 +48,18 @@ export default function ProfileModal({ onClose }: ProfileModalProps) {
             <div className="bg-[#313338] w-full max-w-md rounded-lg shadow-2xl overflow-hidden border border-[#26272d] animate-in zoom-in-95 duration-200">
                 <div className="p-6">
                     <div className="flex justify-between items-center mb-6">
-                        <h2 className="text-xl font-bold text-white">User Settings</h2>
-                        <button onClick={onClose} className="text-gray-400 hover:text-white">✕</button>
+                        <h2 className="text-xl font-bold text-white">Settings</h2>
+                        <button onClick={onClose} className="text-gray-400 hover:text-white cursor-pointer">✕</button>
                     </div>
 
                     {/* Profile Header */}
                     <div className="flex items-center gap-4 mb-6">
                         <div className="w-20 h-20 rounded-full bg-indigo-500 flex items-center justify-center text-3xl font-bold text-white relative">
-                            {displayName[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase()}
-                            <label htmlFor="avatar-upload" className="absolute bottom-0 right-0 w-6 h-6 bg-gray-700 rounded-full flex items-center justify-center text-[10px] cursor-pointer border border-[#313338] hover:bg-gray-600" title="Change Avatar (Not Implemented)">
-                                ✏️
-                            </label>
+                            {user?.user_metadata?.avatar_url ? (
+                                <img src={user.user_metadata.avatar_url} alt="Avatar" className="w-full h-full rounded-full" />
+                            ) : (
+                                <span className="text-3xl font-bold text-white">{user?.user_metadata?.full_name?.[0]}</span>
+                            )}
                         </div>
                         <div>
                             <div className="font-bold text-xl">{displayName}</div>
@@ -87,16 +88,16 @@ export default function ProfileModal({ onClose }: ProfileModalProps) {
                 <div className="bg-[#2b2d31] p-4 flex justify-between items-center">
                     <button
                         onClick={handleLogout}
-                        className="px-4 py-2 text-red-400 hover:text-red-300 font-medium text-sm hover:underline"
+                        className="px-4 py-2 bg-red-600 rounded-sm hover:bg-red-700 text-white font-medium text-sm  cursor-pointer"
                     >
                         Log Out
                     </button>
                     <div className="flex gap-3">
-                        <button onClick={onClose} className="px-4 py-2 hover:underline text-sm font-medium">Cancel</button>
+                        <button onClick={onClose} className="px-4 py-2 bg-black/40 rounded-sm  text-sm font-medium cursor-pointer">Cancel</button>
                         <button
                             onClick={handleSave}
                             disabled={loading}
-                            className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded text-sm font-bold transition-colors disabled:opacity-50"
+                            className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white cursor-pointer rounded text-sm font-bold transition-colors disabled:opacity-50"
                         >
                             {loading ? "Saving..." : "Save Changes"}
                         </button>

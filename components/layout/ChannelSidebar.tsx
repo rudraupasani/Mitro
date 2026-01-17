@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Channel, Server } from "@/types";
 import {
     Volume2,
@@ -15,6 +15,7 @@ import {
     X,
     House
 } from "lucide-react";
+import { useAuth } from "../providers/AuthProvider";
 
 interface ChannelSidebarProps {
     server?: Server;
@@ -50,6 +51,17 @@ export default function ChannelSidebar({
     onOpenSettings,
 }: ChannelSidebarProps) {
     const [open, setOpen] = useState(false);
+    const { user } = useAuth()
+    const [userName, setUserName] = useState(user?.user_metadata?.full_name)
+
+
+    useEffect(() => {
+        if (user?.user_metadata?.full_name) {
+            setUserName(user.user_metadata.full_name);
+        } else if (user?.email) {
+            setUserName(user.email);
+        }
+    }, [user]);
 
     return (
         <>
@@ -83,7 +95,7 @@ export default function ChannelSidebar({
             >
                 {/* Header */}
                 <header className="h-12 px-4 flex items-center justify-between font-bold border-b border-[#1f2023] hover:bg-[#35373c] transition">
-                    <span className="truncate font-bold flex"><House size={20} className="inline mr-2 mt-0.5 text-blue-300" /> Room Community</span>
+                    <span className="truncate font-bold flex"><House size={20} className="inline mr-2 mt-0.5 text-blue-300" /> Mitro Community</span>
 
                     <button
                         className="md:hidden"
@@ -122,65 +134,58 @@ export default function ChannelSidebar({
                     ))}
                 </div>
 
-                {/* User Controls */}
-                <div className="bg-[#232428] p-2 border-t border-[#1f2023]">
-                    {/* User Info */}
-                    <div className="flex items-center gap-2 mb-2">
-                        <div className="relative w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center font-bold text-sm">
-                            {username[0]?.toUpperCase()}
-                            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-[#232428] rounded-full" />
-                        </div>
-
-                        <div className="flex-1 truncate text-sm font-bold">
-                            {username}
-                        </div>
-                    </div>
-
-                    {/* Control Buttons */}
-                    <div className="flex justify-between cursor-pointer">
-                        <ControlButton
-                            active={!isMuted}
-                            danger={isMuted}
-                            onClick={onToggleAudio}
-                            title="Mute"
-                        >
-                            {isMuted ? <MicOff className="cursor-pointer" size={18} /> : <Mic className="cursor-pointer" size={18} />}
-                        </ControlButton>
-
-                        <ControlButton
-                            active={wantsVideo}
-                            danger={!wantsVideo}
-                            onClick={onToggleVideo}
-                            title="Camera"
-                        >
-                            {wantsVideo ? <Video className="cursor-pointer" size={18} /> : <VideoOff className="cursor-pointer" size={18} />}
-                        </ControlButton>
-
-                        <ControlButton
-                            active={isScreenSharing}
-                            onClick={onToggleScreenShare}
-                            title="Share Screen"
-                        >
-                            <MonitorUp className="cursor-pointer" size={18} />
-                        </ControlButton>
-
-                        {activeChannel && (
-                            <ControlButton
-                                danger
-                                onClick={onLeaveChannel}
-                                title="Disconnect"
-                            >
-                                <PhoneOff className="cursor-pointer" size={18} />
-                            </ControlButton>
+                {/* Control Buttons */}
+                <div className="flex justify-between items-center cursor-pointer p-2 border-t-1 border-[#26272d]">
+                    <div className="relative w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center font-bold text-sm">
+                        {user?.user_metadata?.avatar_url ? (
+                            <img src={user.user_metadata.avatar_url} alt="Avatar" className="w-full h-full rounded-full" />
+                        ) : (
+                            <span className="text-3xl font-bold text-white">{user?.user_metadata?.name?.[0]}</span>
                         )}
-
-                        <ControlButton
-                            onClick={onOpenSettings}
-                            title="Settings"
-                        >
-                            <Settings className="cursor-pointer" size={18} />
-                        </ControlButton>
+                        <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-[#232428] rounded-full" />
                     </div>
+                    <ControlButton
+                        active={!isMuted}
+                        danger={isMuted}
+                        onClick={onToggleAudio}
+                        title="Mute"
+                    >
+                        {isMuted ? <MicOff className="cursor-pointer" size={18} /> : <Mic className="cursor-pointer" size={18} />}
+                    </ControlButton>
+
+                    <ControlButton
+                        active={wantsVideo}
+                        danger={!wantsVideo}
+                        onClick={onToggleVideo}
+                        title="Camera"
+                    >
+                        {wantsVideo ? <Video className="cursor-pointer" size={18} /> : <VideoOff className="cursor-pointer" size={18} />}
+                    </ControlButton>
+
+                    <ControlButton
+                        active={isScreenSharing}
+                        onClick={onToggleScreenShare}
+                        title="Share Screen"
+                    >
+                        <MonitorUp className="cursor-pointer" size={18} />
+                    </ControlButton>
+
+                    {activeChannel && (
+                        <ControlButton
+                            danger
+                            onClick={onLeaveChannel}
+                            title="Disconnect"
+                        >
+                            <PhoneOff className="cursor-pointer" size={18} />
+                        </ControlButton>
+                    )}
+
+                    <ControlButton
+                        onClick={onOpenSettings}
+                        title="Settings"
+                    >
+                        <Settings className="cursor-pointer" size={18} />
+                    </ControlButton>
                 </div>
             </div>
         </>

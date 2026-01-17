@@ -15,7 +15,7 @@ type FileTransferState = {
     senderId: string;
 };
 
-export const useWebRTC = (roomId: string, username: string, videoEnabled: boolean = true) => {
+export const useWebRTC = (roomId: string, username: string, videoEnabled: boolean = true , audioEnabled: boolean = true) => {
     const [peers, setPeers] = useState<string[]>([]);
     const peersRef = useRef<Map<string, RTCPeerConnection>>(new Map());
     const dataChannelsRef = useRef<Map<string, RTCDataChannel>>(new Map());
@@ -100,7 +100,7 @@ export const useWebRTC = (roomId: string, username: string, videoEnabled: boolea
         return () => {
             mounted = false;
         };
-    }, [videoEnabled]);
+    }, [videoEnabled , audioEnabled]);
 
     // --- 2. Signaling Effect ---
     useEffect(() => {

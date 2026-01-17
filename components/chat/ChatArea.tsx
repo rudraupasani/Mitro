@@ -104,7 +104,7 @@ export default function ChatArea({ roomId, username }: ChatAreaProps) {
                         className="w-full bg-[#383a40] text-gray-200 px-4 py-2.5 rounded-lg
             focus:outline-none focus:ring-2 focus:ring-indigo-500
             placeholder-gray-500 text-sm"
-                        placeholder={`Message #${roomId}`}
+                        placeholder="Message"
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                     />
