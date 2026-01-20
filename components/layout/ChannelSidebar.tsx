@@ -88,14 +88,18 @@ export default function ChannelSidebar({
         top-0 left-0 h-full
         w-64 bg-[#2b2d31]
         flex flex-col shrink-0
-        transform transition-transform duration-300
+        transform transition-transform duration-300 ease-in-out
         ${open ? "translate-x-0" : "-translate-x-full"}
         md:translate-x-0
+        shadow-xl md:shadow-none
         `}
             >
                 {/* Header */}
-                <header className="h-12 px-4 flex items-center justify-between font-bold border-b border-[#1f2023] hover:bg-[#35373c] transition">
-                    <span className="truncate font-bold flex"><House size={20} className="inline mr-2 mt-0.5 text-blue-300" /> Mitro Community</span>
+                <header className="h-12 px-4 flex items-center justify-between font-semibold border-b border-[#1f2023] hover:bg-[#35373c] transition-colors cursor-pointer">
+                    <span className="truncate flex items-center gap-2 text-[#f2f3f5]">
+                        <House size={20} className="text-[#5865f2]" />
+                        Mitro Community
+                    </span>
 
                     <button
                         className="md:hidden"
@@ -106,43 +110,113 @@ export default function ChannelSidebar({
                 </header>
 
                 {/* Channels */}
-                <div className="flex-1 p-2 overflow-y-auto">
-                    <div className="px-2 py-2 text-xs font-bold text-gray-400 uppercase">
-                        Voice Channels
-                    </div>
+                <div className="flex-1 p-2 overflow-y-auto space-y-1">
+                    {/* Voice Channels */}
+                    {channels.filter(c => c.type === "voice").length > 0 && (
+                        <div className="mb-4">
+                            <div className="px-2 py-1.5 text-xs font-semibold text-[#80848e] uppercase tracking-wide">
+                                Voice Channels
+                            </div>
+                            <div className="space-y-0.5">
+                                {channels.filter(c => c.type === "voice").map((channel) => (
+                                    <button
+                                        key={channel.id}
+                                        onClick={() => {
+                                            onChannelClick(channel.id);
+                                            setOpen(false);
+                                        }}
+                                        className={`
+                                        w-full flex items-center gap-2 px-2 py-1.5 rounded
+                                        transition-all duration-150 cursor-pointer group
+                                        ${activeChannel === channel.id
+                                                ? "bg-[#3f4147] text-[#f2f3f5]"
+                                                : "text-[#b5bac1] hover:bg-[#35373c] hover:text-[#f2f3f5]"
+                                            }
+                                        ${previewChannel === channel.id ? "bg-[#35373c]/60" : ""}
+                                        `}
+                                    >
+                                        <Volume2 size={18} className={`shrink-0 ${activeChannel === channel.id ? 'text-[#f2f3f5]' : 'text-[#80848e] group-hover:text-[#b5bac1]'}`} />
+                                        <span className="truncate font-medium text-sm">{channel.name}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
 
-                    {channels.map((channel) => (
-                        <button
-                            key={channel.id}
-                            onClick={() => {
-                                onChannelClick(channel.id);
-                                setOpen(false);
-                            }}
-                            className={`
-              w-full flex items-center gap-2 px-2 py-1.5 rounded
-              transition-colors cursor-pointer
-              ${activeChannel === channel.id
-                                    ? "bg-[#3f4147] text-white"
-                                    : "text-gray-400 hover:bg-[#35373c] hover:text-gray-200"
-                                }
-              ${previewChannel === channel.id ? "bg-[#35373c]/60" : ""}
-              `}
-                        >
-                            <Volume2 size={16} className="opacity-70 shrink-0" />
-                            <span className="truncate font-medium">{channel.name}</span>
-                        </button>
-                    ))}
+                    {/* Video Channels */}
+                    {channels.filter(c => c.type === "video").length > 0 && (
+                        <div className="mb-4">
+                            <div className="px-2 py-1.5 text-xs font-semibold text-[#80848e] uppercase tracking-wide">
+                                Video Channels
+                            </div>
+                            <div className="space-y-0.5">
+                                {channels.filter(c => c.type === "video").map((channel) => (
+                                    <button
+                                        key={channel.id}
+                                        onClick={() => {
+                                            onChannelClick(channel.id);
+                                            setOpen(false);
+                                        }}
+                                        className={`
+                                        w-full flex items-center gap-2 px-2 py-1.5 rounded
+                                        transition-all duration-150 cursor-pointer group
+                                        ${activeChannel === channel.id
+                                                ? "bg-[#3f4147] text-[#f2f3f5]"
+                                                : "text-[#b5bac1] hover:bg-[#35373c] hover:text-[#f2f3f5]"
+                                            }
+                                        ${previewChannel === channel.id ? "bg-[#35373c]/60" : ""}
+                                        `}
+                                    >
+                                        <Video size={18} className={`shrink-0 ${activeChannel === channel.id ? 'text-[#f2f3f5]' : 'text-[#80848e] group-hover:text-[#b5bac1]'}`} />
+                                        <span className="truncate font-medium text-sm">{channel.name}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Meeting Channels */}
+                    {channels.filter(c => c.type === "meeting").length > 0 && (
+                        <div className="mb-4">
+                            <div className="px-2 py-1.5 text-xs font-semibold text-[#80848e] uppercase tracking-wide">
+                                Meeting Channels
+                            </div>
+                            <div className="space-y-0.5">
+                                {channels.filter(c => c.type === "meeting").map((channel) => (
+                                    <button
+                                        key={channel.id}
+                                        onClick={() => {
+                                            onChannelClick(channel.id);
+                                            setOpen(false);
+                                        }}
+                                        className={`
+                                        w-full flex items-center gap-2 px-2 py-1.5 rounded
+                                        transition-all duration-150 cursor-pointer group
+                                        ${activeChannel === channel.id
+                                                ? "bg-[#3f4147] text-[#f2f3f5]"
+                                                : "text-[#b5bac1] hover:bg-[#35373c] hover:text-[#f2f3f5]"
+                                            }
+                                        ${previewChannel === channel.id ? "bg-[#35373c]/60" : ""}
+                                        `}
+                                    >
+                                        <MonitorUp size={18} className={`shrink-0 ${activeChannel === channel.id ? 'text-[#f2f3f5]' : 'text-[#80848e] group-hover:text-[#b5bac1]'}`} />
+                                        <span className="truncate font-medium text-sm">{channel.name}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Control Buttons */}
-                <div className="flex justify-between items-center cursor-pointer p-2 border-t-1 border-[#26272d]">
-                    <div className="relative w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center font-bold text-sm">
+                <div className="flex justify-between items-center p-2 border-t border-[#1f2023] bg-[#232428]">
+                    <div className="relative w-8 h-8 rounded-full bg-gradient-to-br from-[#5865f2] to-[#3c45a5] flex items-center justify-center font-bold text-sm overflow-hidden">
                         {user?.user_metadata?.avatar_url ? (
-                            <img src={user.user_metadata.avatar_url} alt="Avatar" className="w-full h-full rounded-full" />
+                            <img src={user.user_metadata.avatar_url} alt="Avatar" className="w-full h-full rounded-full object-cover" />
                         ) : (
-                            <span className="text-3xl font-bold text-white">{user?.user_metadata?.name?.[0]}</span>
+                            <span className="text-lg font-bold text-white">{userName?.[0]?.toUpperCase() || 'U'}</span>
                         )}
-                        <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-[#232428] rounded-full" />
+                        <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-[#23a559] border-2 border-[#232428] rounded-full" />
                     </div>
                     <ControlButton
                         active={!isMuted}
@@ -153,22 +227,28 @@ export default function ChannelSidebar({
                         {isMuted ? <MicOff className="cursor-pointer" size={18} /> : <Mic className="cursor-pointer" size={18} />}
                     </ControlButton>
 
-                    <ControlButton
-                        active={wantsVideo}
-                        danger={!wantsVideo}
-                        onClick={onToggleVideo}
-                        title="Camera"
-                    >
-                        {wantsVideo ? <Video className="cursor-pointer" size={18} /> : <VideoOff className="cursor-pointer" size={18} />}
-                    </ControlButton>
+                    {/* Video Toggle - Hidden for Voice Channels */}
+                    {(!activeChannel || channels.find(c => c.id === activeChannel)?.type !== "voice") && (
+                        <ControlButton
+                            active={wantsVideo}
+                            danger={!wantsVideo}
+                            onClick={onToggleVideo}
+                            title="Camera"
+                        >
+                            {wantsVideo ? <Video className="cursor-pointer" size={18} /> : <VideoOff className="cursor-pointer" size={18} />}
+                        </ControlButton>
+                    )}
 
-                    <ControlButton
-                        active={isScreenSharing}
-                        onClick={onToggleScreenShare}
-                        title="Share Screen"
-                    >
-                        <MonitorUp className="cursor-pointer" size={18} />
-                    </ControlButton>
+                    {/* Screen Share - Only for Meeting Channels */}
+                    {activeChannel && channels.find(c => c.id === activeChannel)?.type === "meeting" && (
+                        <ControlButton
+                            active={isScreenSharing}
+                            onClick={onToggleScreenShare}
+                            title="Share Screen"
+                        >
+                            <MonitorUp className="cursor-pointer" size={18} />
+                        </ControlButton>
+                    )}
 
                     {activeChannel && (
                         <ControlButton
@@ -211,11 +291,11 @@ function ControlButton({
             onClick={onClick}
             title={title}
             className={`
-        p-2 rounded transition
-        ${danger ? "text-red-500 hover:bg-red-500/10" : ""}
+        p-2 rounded transition-all duration-150
+        ${danger ? "text-[#f23f43] hover:bg-[#f23f43]/10" : ""}
         ${active
-                    ? "text-green-500"
-                    : "text-gray-400 hover:text-white hover:bg-[#3f4147]"
+                    ? "text-[#23a559] bg-[#23a559]/10"
+                    : "text-[#b5bac1] hover:text-[#f2f3f5] hover:bg-[#3f4147]"
                 }
       `}
         >

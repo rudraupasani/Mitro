@@ -8,7 +8,7 @@ export type Server = {
 export type Channel = {
     id: string;
     name: string;
-    type: "voice" | "text" | "video";
+    type: "voice" | "text" | "video" | "meeting";
 };
 
 export type FileTransfer = {

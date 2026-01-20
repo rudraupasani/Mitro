@@ -9,26 +9,21 @@ import ChatArea from "@/components/chat/ChatArea";
 import AuthProvider, { useAuth } from "@/components/providers/AuthProvider";
 import LoginScreen from "@/components/auth/LoginScreen";
 import ProfileModal from "@/components/user/ProfileModal";
-import { House } from "lucide-react";
-
-// Dummy Data
-// const SERVERS = [
-//   { id: "s1", name: "Dev Community", color: "bg-indigo-500" },
-//   // { id: "s2", name: "Gaming Hub", icon: "🎮", color: "bg-green-500" },
-//   // { id: "s3", name: "Music Lounge", icon: "🎵", color: "bg-red-500" },
-// ];
+import { House, Hash, Download } from "lucide-react";
 
 const CHANNELS = [
   { id: "c1", name: "General Voice", type: "voice" as const },
-  { id: "c2", name: "Gaming", type: "voice" as const },
-  { id: "c3", name: "Music", type: "voice" as const },
+  { id: "c2", name: "Gaming Room", type: "voice" as const },
+  { id: "v1", name: "General Video", type: "video" as const },
+  { id: "v2", name: "Stream Lounge", type: "video" as const },
+  { id: "m1", name: "Daily Standup", type: "meeting" as const },
+  { id: "m2", name: "Project Sync", type: "meeting" as const },
 ];
 
 function AuthenticatedApp() {
   const { user } = useAuth();
 
   // App State
-  // const [activeServer, setActiveServer] = useState(SERVERS[0].id);
   const [activeChannel, setActiveChannel] = useState<string | null>(null);
   const [previewChannel, setPreviewChannel] = useState<string | null>(null);
   const [showProfile, setShowProfile] = useState(false);
@@ -81,19 +76,11 @@ function AuthenticatedApp() {
   };
 
   return (
-    <div className="flex h-screen w-full bg-[#313338] text-gray-100 font-sans overflow-hidden">
+    <div className="flex h-screen w-full bg-[#313338] text-[#f2f3f5] font-sans overflow-hidden">
       {/* Main Discord Layout */}
       <>
-        {/* 1. Server Sidebar */}
-        {/* <ServerSidebar
-          servers={SERVERS}
-          activeServer={activeServer}
-          onServerClick={setActiveServer}
-        /> */}
-
-        {/* 2. Channel Sidebar */}
+        {/* Channel Sidebar */}
         <ChannelSidebar
-          // server={SERVERS.find((s) => s.id === activeServer)}
           channels={CHANNELS}
           activeChannel={activeChannel}
           previewChannel={previewChannel}
@@ -116,29 +103,30 @@ function AuthenticatedApp() {
         <div className="flex-1 flex min-w-0">
           <div className="flex-1 flex flex-col min-w-0 bg-[#313338] relative">
             {/* Top Bar */}
-            <header className="h-12 border-b border-[#26272d] flex items-center px-4 shadow-sm min-h-[48px] shrink-0 justify-between">
-              <div className="flex items-center">
-                <span className="text-gray-400 text-2xl mr-2">#</span>
-                <span className="font-bold">
+            <header className="h-12 border-b border-[#26272d] flex items-center px-4 shadow-sm min-h-[48px] shrink-0 justify-between bg-[#313338]">
+              <div className="flex items-center gap-2">
+                <Hash className="text-[#80848e]" size={24} />
+                <span className="font-semibold text-[#f2f3f5]">
                   {activeChannel
                     ? CHANNELS.find((c) => c.id === activeChannel)?.name
                     : previewChannel
                       ? CHANNELS.find((c) => c.id === previewChannel)?.name
-                      : `Welcome to Mitro App  ${username}`}
+                      : `Welcome, ${username}`}
                 </span>
                 {activeChannel && (
-                  <span className="ml-2 bg-green-600 text-white text-xs px-1 py-1 rounded-full font-bold"></span>
+                  <span className="ml-2 w-2 h-2 bg-[#23a559] rounded-full animate-pulse"></span>
                 )}
               </div>
 
               {/* File Upload Button (Only when connected) */}
-              {/* {activeChannel && (
+              {activeChannel && (
                 <div>
                   <label
                     htmlFor="file-upload"
-                    className="cursor-pointer bg-[#3f4147] hover:bg-[#4a4c52] text-gray-200 px-3 py-1 rounded font-medium text-sm flex items-center gap-2 transition-colors"
+                    className="cursor-pointer bg-[#4e5058] hover:bg-[#5c5e66] text-[#f2f3f5] px-3 py-1.5 rounded font-medium text-sm flex items-center gap-2 transition-colors"
                   >
-                    <span>📂</span> Share File
+                    <Download size={16} />
+                    Share File
                   </label>
                   <input
                     id="file-upload"
@@ -147,26 +135,29 @@ function AuthenticatedApp() {
                     onChange={handleFileUpload}
                   />
                 </div>
-              )} */}
+              )}
             </header>
 
             {/* Content Area */}
             <div className="flex-1 p-4 overflow-y-auto relative flex flex-col">
               {!activeChannel && !previewChannel ? (
-                <div className="h-full flex flex-col items-center justify-center text-gray-400 gap-4">
-                  <div className="w-32 h-32 bg-[#2b2d31] rounded-full flex items-center justify-center text-6xl">
-                    👋
+                <div className="h-full flex flex-col items-center justify-center text-[#b5bac1] gap-6">
+                  <div className="w-32 h-32 bg-[#2b2d31] rounded-full flex items-center justify-center text-6xl shadow-lg">
+                    <House size={64} className="text-[#5865f2]" />
                   </div>
-                  <p className="text-xl font-medium">Select a Voice Channel to join</p>
+                  <div className="text-center">
+                    <p className="text-2xl font-bold text-[#f2f3f5] mb-2">Welcome to Mitro</p>
+                    <p className="text-base text-[#b5bac1]">Select a channel to get started</p>
+                  </div>
                 </div>
               ) : previewChannel ? (
                 /* Preview / Join Confirmation */
-                <div className="h-full flex flex-col items-center justify-center gap-6 animate-in zoom-in duration-300">
-                  <div className="text-center space-y-2">
-                    <h3 className="text-2xl font-bold">Ready to join?</h3>
-                    <p className="text-gray-400">
+                <div className="h-full flex flex-col items-center justify-center gap-6 animate-fade-in">
+                  <div className="text-center space-y-3 max-w-md">
+                    <h3 className="text-3xl font-bold text-[#f2f3f5]">Ready to join?</h3>
+                    <p className="text-[#b5bac1] text-lg">
                       You are about to connect to{" "}
-                      <span className="font-bold text-indigo-400">
+                      <span className="font-bold text-[#5865f2]">
                         {CHANNELS.find((c) => c.id === previewChannel)?.name}
                       </span>
                     </p>
@@ -174,15 +165,15 @@ function AuthenticatedApp() {
                   <div className="flex gap-4">
                     <button
                       onClick={() => setPreviewChannel(null)}
-                      className="px-6 py-3 rounded bg-[#2b2d31] hover:bg-[#35373c] font-medium cursor-pointer border border-[#1f2023]"
+                      className="px-6 py-3 rounded-md bg-[#4e5058] hover:bg-[#5c5e66] text-[#f2f3f5] font-medium cursor-pointer transition-colors"
                     >
                       Cancel
                     </button>
                     <button
                       onClick={confirmJoin}
-                      className="px-6 py-3 rounded bg-green-600 hover:bg-green-700 text-white font-bold shadow-lg cursor-pointer"
+                      className="px-6 py-3 rounded-md bg-[#23a559] hover:bg-[#1f8f4c] text-white font-bold shadow-lg cursor-pointer transition-colors"
                     >
-                      Join Voice
+                      Join Channel
                     </button>
                   </div>
                 </div>
@@ -200,7 +191,7 @@ function AuthenticatedApp() {
                   {/* File Transfer Feed */}
                   {receivedFiles.length > 0 && (
                     <div className="h-48 bg-[#2b2d31] rounded-lg p-3 overflow-y-auto border border-[#1f2023]">
-                      <h4 className="text-xs font-bold text-gray-400 uppercase mb-2 sticky top-0 bg-[#2b2d31] pb-2">
+                      <h4 className="text-xs font-bold text-[#b5bac1] uppercase mb-2 sticky top-0 bg-[#2b2d31] pb-2">
                         Shared Files
                       </h4>
                       <div className="space-y-2">
@@ -210,22 +201,22 @@ function AuthenticatedApp() {
                             className="flex items-center justify-between bg-[#313338] p-2 rounded hover:bg-[#35373c] transition-colors group"
                           >
                             <div className="flex items-center gap-2 overflow-hidden">
-                              <div className="bg-indigo-500 p-1.5 rounded text-xs">
-                                📄
+                              <div className="bg-[#5865f2] p-1.5 rounded text-xs">
+                                <Download size={16} />
                               </div>
                               <div className="flex flex-col min-w-0">
-                                <span className="font-medium truncate text-sm">
+                                <span className="font-medium truncate text-sm text-[#f2f3f5]">
                                   {file.name}
                                 </span>
-                                <span className="text-xs text-gray-400">
-                                  from User {file.sender.substring(0, 4)}
+                                <span className="text-xs text-[#b5bac1]">
+                                  from {file.sender.substring(0, 8)}
                                 </span>
                               </div>
                             </div>
                             <a
                               href={file.url}
                               download={file.name}
-                              className="text-green-500 hover:text-green-400 text-sm font-bold px-3 py-1 rounded bg-green-500/10 hover:bg-green-500/20"
+                              className="text-[#23a559] hover:text-[#1f8f4c] text-sm font-bold px-3 py-1 rounded bg-[#23a559]/10 hover:bg-[#23a559]/20 transition-colors"
                             >
                               Download
                             </a>
@@ -253,8 +244,11 @@ function AuthWrapper() {
 
   if (loading) {
     return (
-      <div className="h-screen w-full flex items-center justify-center bg-[#313338] text-white">
-        <div className="animate-pulse"><House size={16} className="inline mr-2" /> Mitro Community</div>
+      <div className="h-screen w-full flex items-center justify-center bg-[#313338] text-[#f2f3f5]">
+        <div className="flex items-center gap-3 animate-pulse">
+          <House size={24} className="text-[#5865f2]" />
+          <span className="text-lg font-semibold">Mitro Community</span>
+        </div>
       </div>
     )
   }
