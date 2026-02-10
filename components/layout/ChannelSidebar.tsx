@@ -218,54 +218,25 @@ export default function ChannelSidebar({
                         )}
                         <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-[#23a559] border-2 border-[#232428] rounded-full" />
                     </div>
-                    <ControlButton
-                        active={!isMuted}
-                        danger={isMuted}
-                        onClick={onToggleAudio}
-                        title="Mute"
-                    >
-                        {isMuted ? <MicOff className="cursor-pointer" size={18} /> : <Mic className="cursor-pointer" size={18} />}
-                    </ControlButton>
 
-                    {/* Video Toggle - Hidden for Voice Channels */}
-                    {(!activeChannel || channels.find(c => c.id === activeChannel)?.type !== "voice") && (
+                    <div className="flex items-center gap-1">
+                        {activeChannel && (
+                            <ControlButton
+                                danger
+                                onClick={onLeaveChannel}
+                                title="Disconnect"
+                            >
+                                <PhoneOff className="cursor-pointer" size={18} />
+                            </ControlButton>
+                        )}
+
                         <ControlButton
-                            active={wantsVideo}
-                            danger={!wantsVideo}
-                            onClick={onToggleVideo}
-                            title="Camera"
+                            onClick={onOpenSettings}
+                            title="Settings"
                         >
-                            {wantsVideo ? <Video className="cursor-pointer" size={18} /> : <VideoOff className="cursor-pointer" size={18} />}
+                            <Settings className="cursor-pointer" size={18} />
                         </ControlButton>
-                    )}
-
-                    {/* Screen Share - Only for Meeting Channels */}
-                    {activeChannel && channels.find(c => c.id === activeChannel)?.type === "meeting" && (
-                        <ControlButton
-                            active={isScreenSharing}
-                            onClick={onToggleScreenShare}
-                            title="Share Screen"
-                        >
-                            <MonitorUp className="cursor-pointer" size={18} />
-                        </ControlButton>
-                    )}
-
-                    {activeChannel && (
-                        <ControlButton
-                            danger
-                            onClick={onLeaveChannel}
-                            title="Disconnect"
-                        >
-                            <PhoneOff className="cursor-pointer" size={18} />
-                        </ControlButton>
-                    )}
-
-                    <ControlButton
-                        onClick={onOpenSettings}
-                        title="Settings"
-                    >
-                        <Settings className="cursor-pointer" size={18} />
-                    </ControlButton>
+                    </div>
                 </div>
             </div>
         </>

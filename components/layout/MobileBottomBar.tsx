@@ -38,7 +38,7 @@ export default function MobileBottomBar({
     onLeaveChannel
 }: MobileBottomBarProps) {
     return (
-        <div className="md:hidden h-16 bg-[#232428]/95 backdrop-blur border-t border-[#1f2023] px-4 flex items-center justify-between z-50">
+        <div className="md:hidden bottom-150 h-16 bg-[#232428]/95 backdrop-blur border-t border-[#1f2023] px-4 flex items-center justify-between z-50">
 
             {/* Menu */}
             <button

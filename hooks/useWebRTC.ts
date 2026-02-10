@@ -33,6 +33,7 @@ export const useWebRTC = (roomId: string, username: string, videoEnabled: boolea
     const [isVideoOff, setIsVideoOff] = useState(!videoEnabled);
     const [isScreenSharing, setIsScreenSharing] = useState(false);
     const screenStreamRef = useRef<MediaStream | null>(null);
+    const [currentFacingMode, setCurrentFacingMode] = useState<'user' | 'environment'>('user');
 
     // --- 1. Media Management Effect ---
     useEffect(() => {
@@ -40,7 +41,7 @@ export const useWebRTC = (roomId: string, username: string, videoEnabled: boolea
 
         const initMedia = async () => {
             try {
-                console.log(`🎥 Requesting User Media: Audio=true, Video=${videoEnabled}`);
+                console.log(`🎥 Requesting User Media: Audio=${audioEnabled}, Video=${videoEnabled}`);
                 const stream = await navigator.mediaDevices.getUserMedia({
                     audio: {
                         echoCancellation: true,
@@ -48,10 +49,12 @@ export const useWebRTC = (roomId: string, username: string, videoEnabled: boolea
                         autoGainControl: true,
                         sampleRate: 48000
                     },
+
                     video: videoEnabled ? {
                         width: { ideal: 1280 },
                         height: { ideal: 720 },
-                        frameRate: { ideal: 30 }
+                        frameRate: { ideal: 60 },
+                        facingMode: currentFacingMode,
                     } : false
                 });
 
@@ -67,6 +70,13 @@ export const useWebRTC = (roomId: string, username: string, videoEnabled: boolea
 
                 localStreamRef.current = stream;
                 setLocalStream(stream);
+
+                // Log audio tracks to verify they exist
+                const audioTracks = stream.getAudioTracks();
+                console.log(`🔊 Audio tracks in local stream: ${audioTracks.length}`);
+                audioTracks.forEach((track, idx) => {
+                    console.log(`  Track ${idx}: enabled=${track.enabled}, readyState=${track.readyState}, label=${track.label}`);
+                });
 
                 // Update tracks for all existing peers
                 peersRef.current.forEach((pc, peerId) => {
@@ -198,6 +208,7 @@ export const useWebRTC = (roomId: string, username: string, videoEnabled: boolea
             // Add local tracks if available
             if (localStreamRef.current) {
                 localStreamRef.current.getTracks().forEach(track => {
+                    console.log(`➕ Adding ${track.kind} track to peer ${targetId}, enabled=${track.enabled}`);
                     pc.addTrack(track, localStreamRef.current!);
                 });
             }
@@ -314,9 +325,22 @@ export const useWebRTC = (roomId: string, username: string, videoEnabled: boolea
     };
 
     const toggleVideo = () => {
-        // UI should use the videoEnabled prop, but this logic remains for completeness or soft-toggles
+        // Only toggle video tracks, NEVER touch audio tracks
         if (localStreamRef.current) {
-            localStreamRef.current.getVideoTracks().forEach(t => t.enabled = !t.enabled);
+            const videoTracks = localStreamRef.current.getVideoTracks();
+            videoTracks.forEach(t => {
+                t.enabled = !t.enabled;
+                console.log(`🎥 Video track toggled: enabled=${t.enabled}`);
+            });
+
+            // Verify audio tracks remain enabled
+            const audioTracks = localStreamRef.current.getAudioTracks();
+            audioTracks.forEach(t => {
+                if (!t.enabled) {
+                    console.warn('⚠️ Audio track was disabled, re-enabling');
+                    t.enabled = true;
+                }
+            });
         }
     };
 
@@ -400,6 +424,59 @@ export const useWebRTC = (roomId: string, username: string, videoEnabled: boolea
         }
     };
 
+    const switchCamera = async () => {
+        if (!videoEnabled || isScreenSharing) return;
+
+        const newFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
+        console.log(`📷 Switching camera from ${currentFacingMode} to ${newFacingMode}`);
+
+        try {
+            // Get new video stream with opposite facing mode
+            const newStream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true,
+                    sampleRate: 48000
+                },
+                video: {
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
+                    frameRate: { ideal: 60 },
+                    facingMode: newFacingMode
+                }
+            });
+
+            const newVideoTrack = newStream.getVideoTracks()[0];
+            const audioTracks = localStreamRef.current?.getAudioTracks() || [];
+
+            // Stop old video track
+            if (localStreamRef.current) {
+                localStreamRef.current.getVideoTracks().forEach(track => track.stop());
+            }
+
+            // Create new stream with new video and existing audio
+            const combinedStream = new MediaStream([...audioTracks, newVideoTrack]);
+            localStreamRef.current = combinedStream;
+            setLocalStream(combinedStream);
+            setCurrentFacingMode(newFacingMode);
+
+            // Update video track for all peers
+            peersRef.current.forEach((pc, peerId) => {
+                const senders = pc.getSenders();
+                const videoSender = senders.find(s => s.track?.kind === 'video');
+                if (videoSender) {
+                    console.log(`🔄 Replacing video track for ${peerId}`);
+                    videoSender.replaceTrack(newVideoTrack).catch(e => console.error('Failed to replace video track', e));
+                }
+            });
+
+            console.log('✅ Camera switched successfully');
+        } catch (err) {
+            console.error('Failed to switch camera:', err);
+        }
+    };
+
     return {
         localStream,
         remoteStreams,
@@ -412,6 +489,8 @@ export const useWebRTC = (roomId: string, username: string, videoEnabled: boolea
         broadcastFile,
         receivedFiles,
         isScreenSharing,
-        toggleScreenShare
+        toggleScreenShare,
+        switchCamera,
+        currentFacingMode
     };
 };

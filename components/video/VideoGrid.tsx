@@ -20,18 +20,9 @@ export default function VideoGrid({
 }: VideoGridProps) {
     const totalUsers = 1 + remoteStreams.size;
 
-    // Responsive grid columns based on user count
-    const gridCols = totalUsers === 1
-        ? "grid-cols-1"
-        : totalUsers === 2
-            ? "grid-cols-1 md:grid-cols-2"
-            : totalUsers === 3
-                ? "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
-                : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
-
     return (
-        <div className="flex-1 flex items-center justify-center min-h-0 p-4">
-            <div className={`w-full h-full grid gap-3 ${gridCols} auto-rows-fr`}>
+        <div className="flex-1 flex items-center justify-center min-h-0 p-2 sm:p-3 md:p-4">
+            <div className="w-full h-full flex flex-wrap gap-2 sm:gap-2.5 md:gap-3 lg:gap-4 content-start justify-center overflow-y-auto">
                 {/* Local User */}
                 <UserCard
                     stream={localStream}
@@ -113,11 +104,13 @@ function UserCard({
 
     return (
         <div className={`
-            relative rounded-lg overflow-hidden bg-[#1e1f22] 
+            relative rounded-lg bg-[#1e1f22] overflow-auto
             border-2 transition-all duration-200
             ${isSpeaking ? 'border-[#23a559] shadow-lg shadow-[#23a559]/20' : 'border-[#26272d]'}
             ${hasVideo ? '' : 'flex items-center justify-center'}
-            min-h-[200px] md:min-h-[250px] lg:min-h-[300px]
+            w-full sm:w-[calc(50%-0.5rem)] md:w-[calc(50%-0.75rem)] lg:w-[calc(33.333%-1rem)]
+            min-h-[200px] sm:min-h-[220px] md:min-h-[240px] lg:min-h-[280px]
+            max-w-full aspect-video
         `}>
             {/* Video Player - Always rendered for audio */}
             <VideoPlayer
@@ -128,11 +121,11 @@ function UserCard({
 
             {/* Avatar Overlay (when video is off) */}
             {!hasVideo && (
-                <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-[#2b2d31] to-[#1e1f22] z-10">
+                <div className="absolute inset-0 flex flex-col items-center justify-center bg-linear-to-br from-[#2b2d31] to-[#1e1f22] z-10">
                     <div className={`
                         w-20 h-20 md:w-24 md:h-24 rounded-full 
                         flex items-center justify-center text-2xl md:text-3xl font-bold
-                        bg-gradient-to-br from-[#5865f2] to-[#3c45a5]
+                        bg-linear-to-br from-[#5865f2] to-[#3c45a5]
                         ${isSpeaking ? 'ring-4 ring-[#23a559] animate-pulse' : ''}
                         transition-all duration-200
                     `}>
@@ -148,27 +141,37 @@ function UserCard({
             )}
 
             {/* User Info Overlay (when video is on) */}
+            {/* User Info Overlay (when video is ON) */}
             {hasVideo && (
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3 z-20">
+                <div
+                    className="
+      absolute bottom-0 left-0 right-0 z-20
+      bg-linear-to-t from-black/80 to-transparent
+      px-3 py-2 sm:p-3
+    "
+                >
                     <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <div className="font-semibold text-sm text-white flex items-center gap-1">
-                                {username}
-                                {isLocal && <span className="text-xs text-gray-300">(You)</span>}
-                            </div>
+                        {/* Username */}
+                        <div className="font-semibold text-xs sm:text-sm text-white flex items-center gap-1">
+                            {username}
+                            {isLocal && (
+                                <span className="text-[10px] sm:text-xs text-gray-300">(You)</span>
+                            )}
                         </div>
+
+                        {/* Mic Status */}
                         <div className="flex items-center gap-1">
                             {isMuted ? (
-                                <div className="bg-[#f23f43] rounded-full p-1.5">
-                                    <MicOff className="w-3 h-3 text-white" />
+                                <div className="bg-[#f23f43] rounded-full p-1.5 sm:p-2">
+                                    <MicOff className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
                                 </div>
                             ) : isSpeaking ? (
-                                <div className="bg-[#23a559] rounded-full p-1.5 animate-pulse">
-                                    <Mic className="w-3 h-3 text-white" />
+                                <div className="bg-[#23a559] rounded-full p-1.5 sm:p-2 animate-pulse">
+                                    <Mic className="w-3 h-3 sm:w-4 sm:h-4 text-white" />
                                 </div>
                             ) : (
-                                <div className="bg-[#313338] rounded-full p-1.5">
-                                    <Mic className="w-3 h-3 text-[#b5bac1]" />
+                                <div className="bg-[#313338] rounded-full p-1.5 sm:p-2">
+                                    <Mic className="w-3 h-3 sm:w-4 sm:h-4 text-[#b5bac1]" />
                                 </div>
                             )}
                         </div>
@@ -176,20 +179,21 @@ function UserCard({
                 </div>
             )}
 
-            {/* Mute Indicator (when video is off) */}
+            {/* Mute Indicator (when video is OFF) */}
             {!hasVideo && (
-                <div className="absolute top-3 right-3 z-20">
+                <div className="absolute top-2 right-2 sm:top-3 sm:right-3 z-20">
                     {isMuted ? (
-                        <div className="bg-[#f23f43] rounded-full p-2 shadow-lg">
-                            <MicOff className="w-4 h-4 text-white" />
+                        <div className="bg-[#f23f43] rounded-full p-1.5 sm:p-2 shadow-lg">
+                            <MicOff className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                         </div>
                     ) : isSpeaking ? (
-                        <div className="bg-[#23a559] rounded-full p-2 shadow-lg animate-pulse">
-                            <Mic className="w-4 h-4 text-white" />
+                        <div className="bg-[#23a559] rounded-full p-1.5 sm:p-2 shadow-lg animate-pulse">
+                            <Mic className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                         </div>
                     ) : null}
                 </div>
             )}
+
         </div>
     );
 }
@@ -213,10 +217,13 @@ function VideoPlayer({
                 console.log(`🎥 Setting stream, muted: ${muted}, videoOff: ${isVideoOff}`);
                 videoEl.srcObject = stream;
 
-                // CRITICAL: Ensure audio tracks are enabled for remote streams
+                // CRITICAL: Set volume to maximum for remote streams
                 if (!muted) {
-                    stream.getAudioTracks().forEach(track => {
-                        console.log(`🔊 Audio track enabled: ${track.enabled}, readyState: ${track.readyState}`);
+                    videoEl.volume = 1.0;
+                    const audioTracks = stream.getAudioTracks();
+                    console.log(`🔊 Remote stream has ${audioTracks.length} audio tracks`);
+                    audioTracks.forEach((track, idx) => {
+                        console.log(`  Audio track ${idx}: enabled=${track.enabled}, readyState=${track.readyState}, muted=${track.muted}`);
                         track.enabled = true;
                     });
                 }
@@ -228,6 +235,12 @@ function VideoPlayer({
                         }
                     });
                 };
+            } else {
+                // Stream already set, but ensure audio is enabled
+                if (!muted && videoEl.paused) {
+                    console.log('🔄 Re-enabling audio playback');
+                    videoEl.play().catch(err => console.error('Play failed:', err));
+                }
             }
         }
     }, [stream, muted, isVideoOff]);
